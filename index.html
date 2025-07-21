@@ -6,6 +6,8 @@
   <title>AI Chatbot</title>
   <!-- Tailwind CSS CDN for styling -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Marked.js CDN for Markdown parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     /* Custom styles for Inter font and scrollbar */
     body {
@@ -26,37 +28,111 @@
     .chatlog::-webkit-scrollbar-thumb:hover {
       background: #555;
     }
+    /* Hide default resize handle for textarea */
+    textarea {
+        resize: none;
+    }
+    /* Basic Markdown styling for readability */
+    .message p {
+        margin-bottom: 0.5em;
+    }
+    .message h1, .message h2, .message h3, .message h4, .message h5, .message h6 {
+        font-weight: bold;
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+    }
+    .message h1 { font-size: 1.8em; }
+    .message h2 { font-size: 1.5em; }
+    .message h3 { font-size: 1.3em; }
+    .message ul, .message ol {
+        list-style-position: inside;
+        margin-left: 1em;
+        margin-bottom: 0.5em;
+    }
+    .message ul { list-style-type: disc; }
+    .message ol { list-style-type: decimal; }
+    .message blockquote {
+        border-left: 4px solid #ccc;
+        padding-left: 1em;
+        margin-left: 0;
+        color: #666;
+        font-style: italic;
+    }
+    .message table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1em;
+    }
+    .message th, .message td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    .message th {
+        background-color: #f2f2f2;
+    }
+    .message pre {
+        background-color: #e2e8f0; /* Tailwind's gray-200 */
+        padding: 0.75em;
+        border-radius: 0.5rem; /* Tailwind's rounded-lg */
+        overflow-x: auto;
+        font-family: monospace;
+        margin-bottom: 0.5em;
+    }
+    .message code {
+        background-color: #e2e8f0; /* Tailwind's gray-200 */
+        padding: 0.2em 0.4em;
+        border-radius: 0.25rem; /* Tailwind's rounded */
+        font-family: monospace;
+    }
   </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
-  <div class="chatbox bg-white shadow-lg rounded-xl w-full max-w-md p-6 flex flex-col h-[600px]">
-    <div id="chatlog" class="chatlog flex-grow overflow-y-auto mb-4 p-2 border border-gray-200 rounded-lg bg-gray-50">
-      <!-- Chat messages will appear here -->
-      <div class="message text-gray-600 mb-3">
-        <span class="font-semibold text-blue-600">AI:</span> Hello! How can I help you today?
-      </div>
+  <div class="chatbox bg-white shadow-lg rounded-2xl w-[800px] p-6 flex flex-col h-[600px]">
+    <!-- Added flex flex-col to chatlog for proper alignment -->
+    <div id="chatlog" class="chatlog flex flex-col flex-grow overflow-y-auto mb-4 p-2 border border-gray-200 rounded-xl bg-gray-50">
+      <!-- Initial message will be added by JS -->
     </div>
-    <div class="input-area flex items-center space-x-3">
-      <input
-        type="text"
+    
+    <!-- Input area with textarea and button inside -->
+    <div class="input-area relative w-full">
+      <textarea
         id="questionInput"
         placeholder="Ask a question..."
-        class="flex-grow p-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        onkeydown="if(event.key === 'Enter') sendQuestion()"
-      />
+        rows="3"
+        class="w-full p-3 pl-14 pr-14 text-base border border-gray-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+        onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendQuestion(); }"
+      ></textarea>
+      
+      <!-- Plus button for file uploads (grayed out) -->
+      <button
+        class="absolute bottom-3 left-3 bg-gray-300 text-gray-600 p-3 rounded-full opacity-50 cursor-not-allowed shadow-md"
+        aria-label="Add file"
+        disabled
+      >
+        <!-- Plus icon (using inline SVG) -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+          <path fill-rule="evenodd" d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z" clip-rule="evenodd" />
+        </svg>
+      </button>
+
+      <!-- Send button -->
       <button
         onclick="sendQuestion()"
-        class="bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 ease-in-out shadow-md"
+        class="absolute bottom-3 right-3 bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 ease-in-out shadow-md"
+        aria-label="Send message"
       >
-        Send
+        <!-- Send icon (using inline SVG) -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+          <path d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.405Z" />
+        </svg>
       </button>
     </div>
   </div>
 
   <script>
-    // Define the backend URL. For local development, it's localhost.
-    // For deployment, you'll replace this with your deployed backend URL.
-    const BACKEND_URL = "https://my-chatbot-backend-uyn2.onrender.com"; 
+    // Define the backend URL.
+    const BACKEND_URL = "https://shlomo-chatbot-backend.onrender.com"; // <-- Ensure this is your actual Render backend URL!
 
     let messageCounter = 0; // To assign unique IDs to messages
 
@@ -93,7 +169,6 @@
         if (data.answer) {
           addMessage("bot", data.answer); // Add bot response
         } else {
-          // This case should ideally be caught by !response.ok, but as a fallback
           addMessage("bot", "Sorry, I couldn't get a valid answer from the AI. Please try again.");
           console.error("Unexpected backend response:", data);
         }
@@ -115,40 +190,47 @@
       // Conditional styling for user, bot, and error messages
       let bgColor = '';
       let textColor = '';
-      let senderText = '';
-      let senderColor = '';
+      let alignmentClasses = ''; // New variable for alignment and width
 
       if (sender === "user") {
         bgColor = 'bg-blue-100';
         textColor = 'text-blue-800';
-        senderText = 'You';
-        senderColor = 'text-blue-600';
-        div.classList.add('self-end', 'ml-auto'); // Align user messages to the right
+        // Use flex and justify-end to push the message content to the right
+        // inline-flex makes the container shrink-wrap its content
+        alignmentClasses = 'inline-flex justify-end';
       } else { // sender is "bot"
-        bgColor = 'bg-gray-200';
+        bgColor = ''; // No background color for AI responses
         textColor = 'text-gray-800';
-        senderText = 'AI';
-        senderColor = 'text-gray-700';
-        div.classList.add('self-start', 'mr-auto'); // Align bot messages to the left
+        alignmentClasses = 'flex justify-start'; // Align left, use flex for content
       }
 
       if (isError) {
         bgColor = 'bg-red-100';
         textColor = 'text-red-800';
-        senderText = 'Error';
-        senderColor = 'text-red-600';
+        alignmentClasses = 'flex justify-start'; // Error messages also align left
       }
 
-      div.className = `message mb-3 p-2 rounded-lg max-w-[90%] ${bgColor} ${textColor} flex flex-col`; // Added flex-col for better layout
+      // Apply base message styling
+      // The inner content will be max-w-[90%] to prevent stretching
+      div.className = `message mb-3 ${alignmentClasses}`; 
 
-      div.innerHTML = `
-        <span class="font-semibold ${senderColor} mb-1">
-          ${senderText}:
-        </span>
-        <span class="break-words">${text}</span>
+      // Parse Markdown if not a loading or error message
+      let formattedText = text;
+      if (!isLoading && !isError) {
+          formattedText = marked.parse(text);
+      } else if (isLoading) {
+          formattedText = `<span>${text}</span>`; // Wrap loading text in span to prevent markdown parsing
+      }
+
+      // Create an inner div for the message content to apply background and padding
+      const contentDiv = document.createElement("div");
+      contentDiv.className = `p-2 rounded-xl max-w-[90%] ${bgColor} ${textColor} flex flex-col`;
+      contentDiv.innerHTML = `
+        <span class="break-words">${formattedText}</span>
         ${isLoading ? '<span class="animate-pulse ml-2 text-sm">...</span>' : ''}
       `;
       
+      div.appendChild(contentDiv); // Append the content div to the message div
       chatlog.appendChild(div);
       chatlog.scrollTop = chatlog.scrollHeight; // Auto-scroll to bottom
       return messageId; // Return ID for potential removal
@@ -160,6 +242,11 @@
         messageElement.remove();
       }
     }
+
+    // Add initial AI message on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        addMessage("bot", "Hello! How can I help you today?");
+    });
   </script>
 </body>
 </html>
